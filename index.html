@@ -295,10 +295,9 @@ async function pfetch(url, opts = {}) {
 }
 // ── Moodle ──
 async function doConnect(){
-  const u=document.getElementById('u').value.trim(),p=document.getElementById('p').value,k=document.getElementById('k').value.trim();
-  if(!u||!p){toast('Ingresá usuario y contraseña');return}
-  if(!k){toast('Ingresá tu API key de OpenAI');return}
-  busy('connect',true);log('Conectando al campus...','accent');
+  const u=document.getElementById('u').value.trim(),p=document.getElementById('p').value;
+if(!u||!p){toast('Ingresá usuario y contraseña');return}
+busy('connect',true);log('Conectando al campus...','accent');
   try{
     // login
     const r1=await pfetch(`${S.base}/login/index.php`);
