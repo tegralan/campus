@@ -225,7 +225,17 @@ nav::-webkit-scrollbar{display:none}
 <div id="toast"></div>
 
 <script>
-const S={connected:false,base:'https://campus.unma.net.ar/c0',courses:[],items:[],sel:new Set(),extracted:'',analysis:''};
+const S={
+  connected:false,
+  base:'https://campus.unma.net.ar/c0',
+  proxy:'https://campus-proxy-he3h.onrender.com/proxy',
+  cookie:'',
+  courses:[],
+  items:[],
+  sel:new Set(),
+  extracted:'',
+  analysis:''
+};
 
 function go(id){
   document.querySelectorAll('.tab').forEach((t,i)=>{const ids=['config','campus','content','analyze','log'];t.classList.toggle('active',ids[i]===id)});
