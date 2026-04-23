@@ -267,7 +267,32 @@ function busy(id,on){
   const lb=document.getElementById('lb-'+id);
   if(lb&&lbs[id])lb.textContent=lbs[id];
 }
+async function pfetch(url, opts = {}) {
+  const headers = new Headers(opts.headers || {});
+  headers.set('x-target-url', url);
 
+  if (S.cookie) headers.set('x-campus-cookie', S.cookie);
+  if (opts.body) headers.set('Content-Type', 'application/x-www-form-urlencoded');
+
+  const resp = await fetch(S.proxy, {
+    method: opts.method || 'GET',
+    headers,
+    body: opts.body
+  });
+
+  const sc = resp.headers.get('x-set-cookie');
+  if (sc) {
+    const m = sc.match(/MoodleSession[^=]*=([^;]+)/);
+    if (m) {
+      const name = (sc.match(/(MoodleSession[^=]*)/) || ['','MoodleSession'])[1];
+      S.cookie = name + '=' + m[1];
+      localStorage.setItem('cb_cookie', S.cookie);
+      log('Cookie guardada','info');
+    }
+  }
+
+  return resp;
+}
 // ── Moodle ──
 async function doConnect(){
   const u=document.getElementById('u').value.trim(),p=document.getElementById('p').value,k=document.getElementById('k').value.trim();
@@ -276,17 +301,17 @@ async function doConnect(){
   busy('connect',true);log('Conectando al campus...','accent');
   try{
     // login
-    const r1=await fetch(`${S.base}/login/index.php`,{credentials:'include'});
+    const r1=await pfetch(`${S.base}/login/index.php`);
     const h1=await r1.text();
     const tm=h1.match(/name="logintoken"\s+value="([^"]+)"/);
     const tok=tm?tm[1]:'';
     const body=new URLSearchParams({username:u,password:p,logintoken:tok,anchor:''});
-    const r2=await fetch(`${S.base}/login/index.php`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString(),credentials:'include',redirect:'follow'});
+    const r2=await pfetch(`${S.base}/login/index.php`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString(),credentials:'include',redirect:'follow'});
     const h2=await r2.text();
     if(h2.includes('loginerrors')||h2.includes('error-invalidlogin'))throw new Error('Credenciales incorrectas');
     log('Sesión iniciada','success');
     // cursos
-    const r3=await fetch(`${S.base}/my/`,{credentials:'include'});
+    const r3=await pfetch(`${S.base}/my/`);
     const h3=await r3.text();
     const doc=new DOMParser().parseFromString(h3,'text/html');
     const links=doc.querySelectorAll('a[href*="/course/view.php"]');
@@ -312,6 +337,8 @@ async function doConnect(){
 
 function doDisconnect(){
   S.connected=false;S.courses=[];S.items=[];S.sel.clear();S.extracted='';S.analysis='';
+  S.cookie='';
+  localStorage.removeItem('cb_cookie');
   document.getElementById('status-dot').classList.remove('on');
   document.getElementById('st-txt').textContent='Desconectado';
   document.getElementById('conn-info').style.display='none';
@@ -324,6 +351,7 @@ function doDisconnect(){
   document.getElementById('res-sec').style.display='none';
   document.getElementById('content-list').innerHTML='<div class="empty"><div class="empty-icon">📂</div><div class="empty-text">Explorá una materia primero</div></div>';
   log('Desconectado','warning');toast('Sesión cerrada');go('config');
+  
 }
 
 function dType(url,name=''){
@@ -360,7 +388,7 @@ async function doExplore(){
   document.getElementById('exp-st').textContent='Cargando '+course.name+'...';
   log('Explorando: '+course.name,'accent');
   try{
-    const r=await fetch(course.url,{credentials:'include'});
+    const r=await pfetch(course.url);
     const h=await r.text();
     const doc=new DOMParser().parseFromString(h,'text/html');
     const isTiles=h.includes('tile-clickable')||h.includes('format-tiles');
@@ -406,7 +434,7 @@ async function getTiles(courseUrl,doc,html){
     log('Cargando: '+name,'info');
     const url=courseUrl+(courseUrl.includes('?')?'&':'?')+'section='+secNum;
     try{
-      const r=await fetch(url,{credentials:'include'});
+      const r=await pfetch(url);
       const h=await r.text();
       const d=new DOMParser().parseFromString(h,'text/html');
       const sec=d.querySelector('#section-'+secNum+',li[data-section="'+secNum+'"]');
@@ -470,7 +498,7 @@ async function doExtract(){
 
 async function extractItem(item){
   if(!item.url)return'';
-  const r=await fetch(item.url,{credentials:'include'});
+  const r=await pfetch(item.url);
   const h=await r.text();
   const doc=new DOMParser().parseFromString(h,'text/html');
   if(item.type==='forum'||item.type==='hsuforum')return await extForum(doc,item.type);
@@ -482,7 +510,7 @@ async function extForum(doc,type){
   log('  📌 '+links.length+' temas','info');const texts=[];
   for(let i=0;i<Math.min(links.length,15);i++){
     try{
-      const r=await fetch(links[i],{credentials:'include'});
+      const r=await pfetch(links[i]);
       const h=await r.text();const d=new DOMParser().parseFromString(h,'text/html');
       const sels=['.forumpost .posting','div[data-region="post-content"]','.post-content-container','article.forum-post-container','.forumpost'];
       let found=false;
