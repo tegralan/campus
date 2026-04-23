@@ -295,9 +295,13 @@ async function pfetch(url, opts = {}) {
 }
 // ── Moodle ──
 async function doConnect(){
+  alert('doConnect se ejecutó');
+
   const u=document.getElementById('u').value.trim(),p=document.getElementById('p').value;
-if(!u||!p){toast('Ingresá usuario y contraseña');return}
-busy('connect',true);log('Conectando al campus...','accent');
+  if(!u||!p){toast('Ingresá usuario y contraseña');return}
+
+  busy('connect',true);
+  log('Conectando al campus...','accent');
   try{
     // login
     const r1=await pfetch(`${S.base}/login/index.php`);
