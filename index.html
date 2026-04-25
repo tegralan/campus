@@ -121,13 +121,8 @@ nav::-webkit-scrollbar{display:none}
     <div class="fld"><label>Contraseña</label><input id="inp-pass" type="password" placeholder="Tu contraseña" autocomplete="current-password"></div>
   </div>
   <div class="card">
-    <div class="ctitle">🤖 OpenAI API Key</div>
-    <div class="fld"><input id="inp-key" type="password" placeholder="sk-..." autocomplete="off"></div>
-    <div style="font-size:12px;color:var(--txt2);line-height:1.6">Tu key se guarda solo en este dispositivo.<br>Obtené en <b style="color:var(--acc)">platform.openai.com/api-keys</b></div>
-  </div>
-  <div class="card">
     <div class="ctitle">🌐 Proxy</div>
-    <div class="fld"><input id="inp-proxy" type="url" placeholder="https://campus-proxy-he3h.onrender.com/proxy"></div>
+    <div class="fld"><input id="inp-proxy" type="url" value="https://campus-proxy-he3h.onrender.com/proxy" placeholder="https://campus-proxy-he3h.onrender.com/proxy"></div>
     <div style="font-size:12px;color:var(--txt2);line-height:1.6">Necesario para conectarse al campus desde el celular.</div>
   </div>
   <div class="brow">
@@ -207,7 +202,7 @@ nav::-webkit-scrollbar{display:none}
     </div>
     <button class="btn btn-pur" id="btn-analyze" onclick="doAnalyze()" disabled>
       <div class="spin" id="sp-analyze"></div>
-      <span id="lb-analyze">🚀 Analizar con ChatGPT</span>
+      <span id="lb-analyze">📋 Preparar para ChatGPT</span>
     </button>
   </div>
   <div id="res-sec" style="display:none">
@@ -235,10 +230,11 @@ nav::-webkit-scrollbar{display:none}
   <div id="logbox">Esperando...</div>
 </div>
 
-</div>
+</div><!-- /app -->
 <div id="toast"></div>
 
 <script>
+// ── Estado ──
 var ST = {
   base: 'https://campus.unma.net.ar/c0',
   proxy: 'https://campus-proxy-he3h.onrender.com/proxy',
@@ -250,6 +246,7 @@ var ST = {
   analysis: ''
 };
 
+// ── Navegación ──
 function go(id) {
   var tabs = ['config','campus','content','analyze','log'];
   tabs.forEach(function(t) {
@@ -258,6 +255,7 @@ function go(id) {
   });
 }
 
+// ── Log ──
 function addLog(msg, type) {
   var box = document.getElementById('logbox');
   var d = document.createElement('div');
@@ -269,10 +267,9 @@ function addLog(msg, type) {
   box.appendChild(d);
   box.scrollTop = box.scrollHeight;
 }
-function clearLog() {
-  document.getElementById('logbox').textContent = 'Log limpiado.';
-}
+function clearLog() { document.getElementById('logbox').textContent = 'Log limpiado.'; }
 
+// ── Toast ──
 function showToast(msg) {
   var el = document.getElementById('toast');
   el.textContent = msg;
@@ -280,36 +277,30 @@ function showToast(msg) {
   setTimeout(function() { el.classList.remove('on'); }, 2500);
 }
 
+// ── Error box ──
 function showErr(msg) {
   document.getElementById('errbox').style.display = '';
   document.getElementById('errmsg').textContent = msg;
 }
-function hideErr() {
-  document.getElementById('errbox').style.display = 'none';
-}
+function hideErr() { document.getElementById('errbox').style.display = 'none'; }
 
+// ── Storage ──
 function saveConf() {
   localStorage.setItem('cb_u', document.getElementById('inp-user').value);
-  localStorage.setItem('cb_k', document.getElementById('inp-key').value);
-  localStorage.setItem('cb_p', ST.proxy);
+  var px = document.getElementById('inp-proxy').value.trim();
+  if (px) localStorage.setItem('cb_p', px);
 }
-
 function loadConf() {
   var u = localStorage.getItem('cb_u');
-  var k = localStorage.getItem('cb_k');
   var p = localStorage.getItem('cb_p');
   var c = localStorage.getItem('cb_cookie');
   if (u) document.getElementById('inp-user').value = u;
-  if (k) document.getElementById('inp-key').value = k;
-  if (p) {
-    document.getElementById('inp-proxy').value = p;
-    ST.proxy = p;
-  } else {
-    document.getElementById('inp-proxy').value = ST.proxy;
-  }
+  if (p) { document.getElementById('inp-proxy').value = p; ST.proxy = p; }
+  else { document.getElementById('inp-proxy').value = ST.proxy; }
   if (c) ST.cookie = c;
 }
 
+// ── Spinner ──
 function setBusy(id, on) {
   document.getElementById('sp-'+id).classList.toggle('on', on);
   var btn = document.getElementById('btn-'+id);
@@ -318,20 +309,24 @@ function setBusy(id, on) {
     connect:  on ? 'Conectando...' : 'Conectar',
     explore:  on ? 'Cargando...'   : '🔍 Explorar contenido',
     extract:  on ? 'Extrayendo...' : '⬇ Extraer seleccionados',
-    analyze:  on ? 'Analizando...' : '🚀 Analizar con ChatGPT'
+    analyze:  on ? 'Analizando...' : '📋 Preparar para ChatGPT'
   };
   var lb = document.getElementById('lb-'+id);
   if (lb && labels[id]) lb.textContent = labels[id];
 }
 
+// ── Proxy fetch ──
 function pfetch(url, opts) {
   opts = opts || {};
-  var headers = new Headers(opts.headers || {});
+  var proxy = ST.proxy ? ST.proxy.replace(/\/proxy$/, '') + '/proxy' : '';
+  if (!proxy) {
+    return fetch(url, { method: opts.method || 'GET', body: opts.body || undefined, credentials: 'include', redirect: 'follow' });
+  }
+  var headers = new Headers();
   headers.set('x-target-url', url);
   if (ST.cookie) headers.set('x-campus-cookie', ST.cookie);
   if (opts.body) headers.set('Content-Type', 'application/x-www-form-urlencoded');
-
-  return fetch(ST.proxy, {
+  return fetch(proxy, {
     method: opts.method || 'GET',
     headers: headers,
     body: opts.body || undefined
@@ -350,38 +345,38 @@ function pfetch(url, opts) {
   });
 }
 
+// ── CONECTAR ──
 function doConnect() {
   hideErr();
   var u = document.getElementById('inp-user').value.trim();
   var p = document.getElementById('inp-pass').value;
   var px = document.getElementById('inp-proxy').value.trim();
 
-  if (!u || !p) {
-    showErr('Ingresa usuario y contrasena.');
-    return;
-  }
-
+  if (!u || !p) { showErr('Ingresa usuario y contrasena.'); return; }
   ST.proxy = px || 'https://campus-proxy-he3h.onrender.com/proxy';
+  document.getElementById('inp-proxy').value = ST.proxy;
   localStorage.setItem('cb_p', ST.proxy);
   addLog('Proxy: ' + ST.proxy, 'info');
 
   setBusy('connect', true);
   addLog('=== Iniciando conexion ===', 'accent');
 
+  // Paso 1: login page
   addLog('Paso 1/3: Obteniendo pagina de login...', 'info');
   pfetch(ST.base + '/login/index.php')
   .then(function(r1) {
     addLog('Status pagina login: ' + r1.status, 'info');
-    if (!r1.ok) throw new Error('El campus respondio HTTP ' + r1.status + '. Verifica tu conexion.');
+    if (!r1.ok) throw new Error('El campus respondio HTTP ' + r1.status + '. Verificá tu conexion.');
     return r1.text();
   })
   .then(function(h1) {
     addLog('Pagina login recibida (' + h1.length + ' chars)', 'success');
-    if (h1.length < 100) throw new Error('Respuesta muy corta del campus (' + h1.length + ' chars). El proxy puede no estar funcionando correctamente.');
+    if (h1.length < 100) throw new Error('Respuesta muy corta del campus (' + h1.length + ' chars).\nEl proxy puede no estar funcionando correctamente.');
     var m = h1.match(/name="logintoken"\s+value="([^"]+)"/);
     var tok = m ? m[1] : '';
     addLog('Login token: ' + (tok ? 'OK' : 'no encontrado'), 'info');
     var body = 'username=' + encodeURIComponent(u) + '&password=' + encodeURIComponent(p) + '&logintoken=' + encodeURIComponent(tok) + '&anchor=';
+    // Paso 2: POST login
     addLog('Paso 2/3: Enviando credenciales...', 'info');
     return pfetch(ST.base + '/login/index.php', { method: 'POST', body: body });
   })
@@ -392,13 +387,14 @@ function doConnect() {
   .then(function(h2) {
     addLog('Respuesta login (' + h2.length + ' chars)', 'info');
     if (h2.includes('loginerrors') || h2.includes('error-invalidlogin') || h2.includes('invalidlogin')) {
-      throw new Error('Credenciales incorrectas. Verifica tu usuario y contrasena del campus UNMA.');
+      throw new Error('Credenciales incorrectas.\nVerificá tu usuario y contrasena del campus UNMA.');
     }
     if (h2.includes('id="loginbtn"') && !h2.includes('dashboard') && !h2.includes('/my/')) {
       addLog('HTML (primeros 200): ' + h2.slice(0, 200), 'warning');
-      throw new Error('Login no completado. El campus puede estar requiriendo verificacion adicional o el proxy no esta pasando las cookies.');
+      throw new Error('Login no completado.\nEl campus puede estar requiriendo verificacion adicional\no el proxy no esta pasando las cookies.');
     }
     addLog('Login exitoso', 'success');
+    // Paso 3: cursos
     addLog('Paso 3/3: Cargando materias...', 'info');
     return pfetch(ST.base + '/my/');
   })
@@ -423,9 +419,9 @@ function doConnect() {
     addLog(ST.courses.length + ' materias encontradas', 'success');
     if (ST.courses.length === 0) {
       addLog('Primeros 300 chars del dashboard: ' + h3.slice(0, 300), 'warning');
-      throw new Error('No se encontraron materias. Posibles causas: el login no se completo, el proxy no funciona correctamente o el campus cambio su estructura.');
+      throw new Error('No se encontraron materias.\n\nPosibles causas:\n- El login no se completo (cookies)\n- El proxy no funciona correctamente\n- El campus cambio su estructura\n\nRevisa el tab Log para detalles.');
     }
-
+    // Actualizar UI
     saveConf();
     document.getElementById('sdot').classList.add('on');
     document.getElementById('stxt').textContent = u;
@@ -433,12 +429,10 @@ function doConnect() {
     document.getElementById('inf-user').textContent = u;
     document.getElementById('inf-courses').textContent = ST.courses.length;
     document.getElementById('btn-disc').disabled = false;
-
     var sel = document.getElementById('sel-course');
     sel.innerHTML = ST.courses.map(function(c) {
       return '<option value="' + escHtml(c.url) + '">' + escHtml(c.name) + '</option>';
     }).join('');
-
     document.getElementById('btn-explore').disabled = false;
     hideErr();
     showToast('Conectado - ' + ST.courses.length + ' materias');
@@ -454,15 +448,10 @@ function doConnect() {
   });
 }
 
+// ── DESCONECTAR ──
 function doDisconnect() {
-  ST.courses = [];
-  ST.items = [];
-  ST.sel = [];
-  ST.extracted = '';
-  ST.analysis = '';
-  ST.cookie = '';
+  ST.courses = []; ST.items = []; ST.sel = []; ST.extracted = ''; ST.analysis = ''; ST.cookie = '';
   localStorage.removeItem('cb_cookie');
-
   document.getElementById('sdot').classList.remove('on');
   document.getElementById('stxt').textContent = 'Desconectado';
   document.getElementById('conninfo').style.display = 'none';
@@ -479,6 +468,7 @@ function doDisconnect() {
   go('config');
 }
 
+// ── Tipos ──
 var TICONS = {forum:'💬',hsuforum:'💬',folder:'📁',resource:'📄',url:'🔗',page:'📃',quiz:'📝',assign:'📋',video:'🎬',section:'📂',unknown:'•'};
 var TLABELS = {forum:'Foro',hsuforum:'Foro HSU',folder:'Carpeta',resource:'Archivo',url:'Enlace',page:'Pagina',quiz:'Cuestionario',assign:'Tarea',video:'Video',section:'Seccion',unknown:'Otro'};
 
@@ -510,6 +500,7 @@ function exLinks(container) {
   return items;
 }
 
+// ── EXPLORAR ──
 function doExplore() {
   var sel = document.getElementById('sel-course');
   if (!sel.value) { showToast('Selecciona una materia'); return; }
@@ -580,7 +571,6 @@ function loadTiles(courseUrl, doc) {
   var tiles = Array.from(doc.querySelectorAll('li.tile[data-section]'));
   addLog(tiles.length + ' tiles encontrados', 'info');
   var chain = Promise.resolve(items);
-
   tiles.forEach(function(tile) {
     chain = chain.then(function(acc) {
       var secNum = tile.getAttribute('data-section');
@@ -609,10 +599,10 @@ function loadTiles(courseUrl, doc) {
       .catch(function() { return acc; });
     });
   });
-
   return chain;
 }
 
+// ── Render lista ──
 function renderList(items) {
   var list = document.getElementById('clist');
   if (!items.length) {
@@ -657,7 +647,6 @@ function selAll() {
   });
   updSel();
 }
-
 function selForums() {
   ST.sel = [];
   ST.items.forEach(function(it, i) {
@@ -668,13 +657,13 @@ function selForums() {
   });
   updSel();
 }
-
 function selNone() {
   ST.sel = [];
   document.querySelectorAll('.itm.sel').forEach(function(el) { el.classList.remove('sel'); });
   updSel();
 }
 
+// ── EXTRAER ──
 function doExtract() {
   if (!ST.sel.length) { showToast('Selecciona algo primero'); return; }
   setBusy('extract', true);
@@ -703,13 +692,11 @@ function doExtract() {
       document.getElementById('ext-prog').style.display = 'none';
       return;
     }
-
     var item = ST.items[ST.sel[idx]];
     var pct = Math.round(idx / ST.sel.length * 100);
     document.getElementById('ext-fill').style.width = pct + '%';
     document.getElementById('ext-st').textContent = '[' + (idx+1) + '/' + ST.sel.length + '] ' + item.name;
     addLog('[' + (idx+1) + '/' + ST.sel.length + '] ' + item.name, 'info');
-
     extractItem(item)
     .then(function(text) {
       if (text) parts.push('=== ' + item.name + ' ===\n\n' + text);
@@ -744,7 +731,6 @@ function extForum(doc, type) {
   addLog('  ' + links.length + ' temas', 'info');
   var texts = [];
   var i = 0;
-
   function nextTopic() {
     if (i >= Math.min(links.length, 15)) return Promise.resolve(texts.join('\n\n---\n\n'));
     return pfetch(links[i])
@@ -756,26 +742,16 @@ function extForum(doc, type) {
       for (var s = 0; s < sels.length; s++) {
         var ps = d.querySelectorAll(sels[s]);
         if (ps.length) {
-          ps.forEach(function(p) {
-            var t = (p.textContent || '').trim();
-            if (t && t.length > 15) texts.push(t);
-          });
-          found = true;
-          break;
+          ps.forEach(function(p) { var t=(p.textContent||'').trim(); if(t&&t.length>15)texts.push(t); });
+          found = true; break;
         }
       }
-      if (!found) {
-        var m = d.querySelector('#region-main');
-        if (m) texts.push((m.textContent || '').trim().slice(0,3000));
-      }
+      if (!found) { var m=d.querySelector('#region-main'); if(m)texts.push((m.textContent||'').trim().slice(0,3000)); }
       addLog('  Tema ' + (i+1) + '/' + Math.min(links.length,15), 'info');
       i++;
       return nextTopic();
     })
-    .catch(function() {
-      i++;
-      return nextTopic();
-    });
+    .catch(function() { i++; return nextTopic(); });
   }
   return nextTopic();
 }
@@ -784,88 +760,61 @@ function extFolder(doc) {
   var files = Array.from(doc.querySelectorAll('.fp-filename,a[href*="pluginfile"]')).map(function(f){return(f.textContent||'').trim();}).filter(Boolean);
   var text = files.length ? 'Archivos:\n' + files.map(function(f){return '- '+f;}).join('\n') : '';
   ['.box.generalbox','#intro','.activity-description'].forEach(function(s) {
-    var el = doc.querySelector(s);
-    if (el) text += '\n\n' + (el.textContent || '').trim();
+    var el=doc.querySelector(s); if(el)text+='\n\n'+(el.textContent||'').trim();
   });
   return Promise.resolve(text);
 }
 
 function extPage(doc) {
-  var sels = ['#region-main .box.generalbox','div[role="main"]','#page-content','div.no-overflow','section#region-main'];
-  for (var i = 0; i < sels.length; i++) {
-    var el = doc.querySelector(sels[i]);
-    if (el) {
-      var t = (el.textContent || '').trim();
-      if (t.length > 30) return Promise.resolve(t);
-    }
-  }
-  return Promise.resolve(doc.body ? (doc.body.textContent || '').trim().slice(0,5000) : '');
+  var sels=['#region-main .box.generalbox','div[role="main"]','#page-content','div.no-overflow','section#region-main'];
+  for(var i=0;i<sels.length;i++){var el=doc.querySelector(sels[i]);if(el){var t=(el.textContent||'').trim();if(t.length>30)return Promise.resolve(t);}}
+  return Promise.resolve(doc.body?(doc.body.textContent||'').trim().slice(0,5000):'');
 }
 
+// ── ANALIZAR ──
 var PRESETS = {
   resumir:   'Resumí los puntos principales. Identificá ideas clave y conclusiones.',
   debate:    'Analizá el foro: posturas de participantes, argumentos principales y conclusiones.',
   estudiar:  'Actuá como tutor. Generá: 1) Resumen ejecutivo, 2) Conceptos clave con definicion, 3) Preguntas de examen con respuestas.',
   preguntas: 'Genera 10 preguntas de estudio con respuestas, de menor a mayor dificultad.'
 };
-
-function setPreset(k) {
-  if (PRESETS[k]) document.getElementById('inp-inst').value = PRESETS[k];
-  showToast('Instruccion cargada');
-}
+function setPreset(k) { if(PRESETS[k]) document.getElementById('inp-inst').value=PRESETS[k]; showToast('Instruccion cargada'); }
 
 function doAnalyze() {
   if (!ST.extracted) { showToast('Primero extrae contenido'); return; }
-  var k = document.getElementById('inp-key').value.trim();
   var inst = document.getElementById('inp-inst').value.trim();
-  if (!k) { showToast('Ingresa API key en Config'); go('config'); return; }
-
-  setBusy('analyze', true);
-  document.getElementById('anal-prog').style.display = 'none';
-  document.getElementById('res-sec').style.display = 'none';
-  addLog('Enviando a ChatGPT (gpt-4o-mini)...', 'accent');
-
   var prompt = inst + '\n\nContenido extraido del campus:\n\n' + ST.extracted.slice(0, 12000);
-  fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + k },
-    body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{role:'user',content:prompt}], max_tokens: 1500, temperature: 0.7 })
-  })
-  .then(function(r) {
-    if (!r.ok) return r.json().then(function(e) { throw new Error((e.error&&e.error.message)||('Error '+r.status)); });
-    return r.json();
-  })
-  .then(function(data) {
-    ST.analysis = data.choices[0].message.content;
-    document.getElementById('resbox').textContent = ST.analysis;
-    document.getElementById('res-sec').style.display = '';
-    addLog('Analisis recibido', 'success');
-    showToast('Analisis listo');
-  })
-  .catch(function(e) {
-    addLog('Error ChatGPT: ' + e.message, 'error');
-    showToast('Error: ' + e.message);
-  })
-  .finally(function() {
-    setBusy('analyze', false);
-    document.getElementById('anal-prog').style.display = 'none';
+
+  ST.analysis = prompt;
+  document.getElementById('resbox').textContent = prompt;
+  document.getElementById('res-sec').style.display = '';
+  addLog('Prompt preparado para ChatGPT (' + prompt.length.toLocaleString() + ' caracteres)', 'success');
+
+  copyText(prompt).then(function() {
+    showToast('Prompt copiado. Pegalo en ChatGPT.');
+    window.open('https://chatgpt.com/', '_blank');
+  }).catch(function() {
+    showToast('Prompt listo. Usa Copiar.');
   });
+}
+
+function copyText(text) {
+  if (navigator.clipboard) {
+    return navigator.clipboard.writeText(text);
+  }
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  return Promise.resolve();
 }
 
 function copyRes() {
   var text = ST.analysis || ST.extracted;
   if (!text) { showToast('No hay texto'); return; }
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(function(){showToast('Copiado');});
-  } else {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showToast('Copiado');
-  }
+  copyText(text).then(function(){ showToast('Copiado'); });
 }
 
 function doWord() {
@@ -875,30 +824,27 @@ function doWord() {
   var title = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'Campus UNMA';
   var date = new Date().toLocaleDateString('es-AR');
   var body = content.split(/\n\n+/).map(function(p) {
-    var t = p.trim();
-    if (!t) return '';
-    if (t.indexOf('===') == 0 && t.lastIndexOf('===') == t.length - 3) return '<h2>' + escHtml(t.replace(/=/g,'').trim()) + '</h2>';
-    return '<p>' + escHtml(t) + '</p>';
+    var t = p.trim(); if(!t)return'';
+    if(t.indexOf('===')==0&&t.lastIndexOf('===')==t.length-3)return'<h2>'+escHtml(t.replace(/=/g,'').trim())+'</h2>';
+    return '<p>'+escHtml(t)+'</p>';
   }).join('\n');
-
   var html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>"+escHtml(title)+"</title><style>body{font-family:Arial,sans-serif;font-size:12pt;margin:2cm}h1{font-size:18pt;color:#1a1a2e;border-bottom:2px solid #4a90d9;padding-bottom:8px}h2{font-size:14pt;color:#4a90d9;margin-top:20px}p{line-height:1.6;margin-bottom:10px}.meta{color:#666;font-size:10pt}</style></head><body><h1>"+escHtml(title)+"</h1><p class='meta'>Generado: "+date+" | Campus Bot UNMA</p>"+body+"</body></html>";
   var blob = new Blob([html], {type:'application/msword'});
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = url;
-  a.download = 'CampusBot_'+title.slice(0,20).replace(/[^a-zA-Z0-9]/g,'_')+'_'+date.replace(/\//g,'')+'.doc';
-  a.click();
-  URL.revokeObjectURL(url);
+  a.href=url; a.download='CampusBot_'+title.slice(0,20).replace(/[^a-zA-Z0-9]/g,'_')+'_'+date.replace(/\//g,'')+'.doc';
+  a.click(); URL.revokeObjectURL(url);
   showToast('Descargando Word...');
-  addLog('Word exportado', 'success');
+  addLog('Word exportado','success');
 }
 
 function escHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── Init ──
 loadConf();
-addLog('Campus Bot listo. Configura tus credenciales y toca Conectar.', 'accent');
+addLog('Campus Bot listo. Configura usuario, contraseña y proxy; luego toca Conectar.', 'accent');
 </script>
 </body>
 </html>
